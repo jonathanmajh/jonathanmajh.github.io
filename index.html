@@ -1,62 +1,184 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KPI Dashboard Index</title>
     <style>
+        :root {
+            --primary: #0366d6;
+            --muted: #f5f5f5;
+            --nav-height: 64px;
+        }
+
+        html,
         body {
+            height: 100%;
+            margin: 0;
             font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        h1 {
+            background: #fff;
             color: #333;
-            text-align: center;
-            margin-bottom: 30px;
         }
-        .links-container {
-            background-color: #f5f5f5;
-            padding: 20px;
-            border-radius: 5px;
+
+        .container {
+            /* max-width:1200px; */
+            margin: 0 auto;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
         }
-        ul {
-            list-style-type: none;
+
+        header.navbar {
+            height: var(--nav-height);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            background: var(--muted);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        header h1 {
+            font-size: 18px;
+            margin: 0;
+        }
+
+        nav ul {
+            display: flex;
+            gap: 8px;
+            margin: 0;
             padding: 0;
+            list-style: none;
         }
-        li {
-            margin: 10px 0;
-        }
-        a {
-            color: #0366d6;
+
+        nav a {
+            display: inline-block;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--primary);
             text-decoration: none;
+            font-size: 14px;
         }
-        a:hover {
-            text-decoration: underline;
+
+        nav a:hover {
+            background: #fff;
+        }
+
+        nav a.active {
+            background: var(--primary);
+            color: #fff
+        }
+
+        .content {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 12px;
+        }
+
+        .links-container {
+            display: none;
+            /* keep original list hidden as fallback */
+        }
+
+        iframe#kpi-frame {
+            width: 100%;
+            height: calc(100vh - var(--nav-height) - 24px);
+            border: 0;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            border-radius: 6px;
+        }
+
+        @media (max-width:640px) {
+            nav ul {
+                overflow: auto
+            }
+
+            iframe#kpi-frame {
+                height: calc(100vh - var(--nav-height) - 16px)
+            }
         }
     </style>
 </head>
+
 <body>
-    <h1>KPI Dashboard Index</h1>
-    <div class="links-container">
-        <ul>
-            <li><a href="3 Tab Section_kpi.html">3 Tab Section KPI</a></li>
-            <li><a href="Aux Systems_kpi.html">Auxiliary Systems KPI</a></li>
-            <li><a href="Coater Application_kpi.html">Coater Application KPI</a></li>
-            <li><a href="Cooling Section_kpi.html">Cooling Section KPI</a></li>
-            <li><a href="Dry Mat_kpi.html">Dry Mat KPI</a></li>
-            <li><a href="FPL_kpi.html">FPL KPI</a></li>
-            <li><a href="Granule Application_kpi.html">Granule Application KPI</a></li>
-            <li><a href="Laminate Section_kpi.html">Laminate Section KPI</a></li>
-            <li><a href="Packaging Section_kpi.html">Packaging Section KPI</a></li>
-            <li><a href="Sealant & Laminate Mixing_kpi.html">Sealant & Laminate Mixing KPI</a></li>
-        </ul>
+    <div class="container">
+        <header class="navbar">
+            <h1>KPI Dashboard</h1>
+            <nav aria-label="KPI Navigation">
+                <ul id="nav-list">
+                    <li><a href="#" data-href="Dry Mat_kpi.html">Dry Mat</a></li>
+                    <li><a href="#" data-href="Coater Application_kpi.html">Coater</a></li>
+                    <li><a href="#" data-href="Granule Application_kpi.html">Granule Application</a></li>
+                    <li><a href="#" data-href="Cooling Section_kpi.html">Cooling Section</a></li>
+                    <li><a href="#" data-href="FPL_kpi.html">FPL</a></li>
+                    <li><a href="#" data-href="Sealant & Laminate Mixing_kpi.html">Sealant & Laminate Mixing</a></li>
+                    <li><a href="#" data-href="Laminate Section_kpi.html">Laminate</a></li>
+                    <li><a href="#" data-href="3 Tab Section_kpi.html">3 Tab</a></li>
+                    <li><a href="#" data-href="Packaging Section_kpi.html">Packaging</a></li>
+                    <li><a href="#" data-href="Aux Systems_kpi.html">Aux Systems</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main class="content">
+            <!-- iframe that loads KPI pages -->
+            <iframe id="kpi-frame" title="KPI viewer" src="3 Tab Section_kpi.html"></iframe>
+        </main>
     </div>
-    <!-- link to flutter/index.html at the bottom right of the page -->
-    <!-- <div style="text-align: right;">
-        <a href="flutter/index.html">Go to Flutter Dashboard</a>
-    </div> -->
+
+    <script>
+        (function () {
+            const nav = document.getElementById('nav-list');
+            const frame = document.getElementById('kpi-frame');
+            function setActive(link) {
+                Array.from(nav.querySelectorAll('a')).forEach(a => a.classList.remove('active'));
+                if (link) link.classList.add('active');
+            }
+
+            nav.addEventListener('click', function (e) {
+                const a = e.target.closest('a[data-href]');
+                if (!a) return;
+                e.preventDefault();
+                const href = a.getAttribute('data-href');
+                if (href) {
+                    frame.src = href;
+                    setActive(a);
+                    // update history so back button works within the index page
+                    try { history.pushState({ kpi: href }, '', '#' + encodeURIComponent(href)); } catch (e) { }
+                }
+            });
+
+            // On load, check hash to restore last viewed page
+            window.addEventListener('load', function () {
+                const hash = location.hash && decodeURIComponent(location.hash.slice(1));
+                if (hash) {
+                    const link = nav.querySelector('[data-href="' + hash + '"]');
+                    if (link) { frame.src = hash; setActive(link); }
+                } else {
+                    // mark the default active link
+                    const first = nav.querySelector('a[data-href]');
+                    if (first) setActive(first);
+                }
+            });
+
+            // support back/forward navigation
+            window.addEventListener('popstate', function (e) {
+                const href = (e.state && e.state.kpi) || (location.hash && decodeURIComponent(location.hash.slice(1)));
+                if (href) {
+                    frame.src = href;
+                    const link = nav.querySelector('[data-href="' + href + '"]');
+                    if (link) setActive(link);
+                }
+            });
+        })();
+    </script>
 </body>
+
 </html>
