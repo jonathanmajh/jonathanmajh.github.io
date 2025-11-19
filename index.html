@@ -84,11 +84,12 @@
         }
 
         .zoom-controls button {
-            background: transparent;
+            background: var(--highlight);
             border: 1px solid rgba(0, 0, 0, 0.08);
             padding: 6px 8px;
             border-radius: 6px;
             cursor: pointer;
+            font-size: 20px;
             color: var(--primary);
         }
 
@@ -98,13 +99,43 @@
 
         .zoom-controls input[type=range] {
             width: 120px;
-            accent-color: var(--highlight);
-            &:-moz-window-inactive {
-                --thumb-color: var(--highlight);
-            }
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
         }
 
-        
+        .zoom-controls input[type=range]::-webkit-slider-runnable-track {
+            background: #ddd;
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        .zoom-controls input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--highlight);
+            cursor: pointer;
+            border: none;
+            margin-top: -6px;
+        }
+
+        .zoom-controls input[type=range]::-moz-range-track {
+            background: #ddd;
+            height: 4px;
+            border-radius: 2px;
+            border: none;
+        }
+
+        .zoom-controls input[type=range]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--highlight);
+            cursor: pointer;
+            border: none;
+        }
 
         .zoom-controls .zoom-label {
             min-width: 48px;
