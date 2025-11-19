@@ -8,6 +8,7 @@
     <style>
         :root {
             --primary: #0366d6;
+            --highlight: #ff0000;
             --muted: #f5f5f5;
             --nav-height: 64px;
         }
@@ -19,6 +20,7 @@
             font-family: Arial, sans-serif;
             background: #fff;
             color: #333;
+            overflow: hidden;
         }
 
         .container {
@@ -40,6 +42,7 @@
             position: sticky;
             top: 0;
             z-index: 1000;
+            flex-shrink: 0;
         }
 
         header h1 {
@@ -72,6 +75,41 @@
         nav a.active {
             background: var(--primary);
             color: #fff
+        }
+
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .zoom-controls button {
+            background: transparent;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            padding: 6px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--primary);
+        }
+
+        .zoom-controls button:active {
+            transform: translateY(1px)
+        }
+
+        .zoom-controls input[type=range] {
+            width: 120px;
+            accent-color: var(--highlight);
+            &:-moz-window-inactive {
+                --thumb-color: var(--highlight);
+            }
+        }
+
+        
+
+        .zoom-controls .zoom-label {
+            min-width: 48px;
+            text-align: right;
+            font-size: 13px
         }
 
         .content {
@@ -125,11 +163,20 @@
                     <li><a href="#" data-href="Aux Systems_kpi.html">Aux Systems</a></li>
                 </ul>
             </nav>
+
+            <div class="zoom-controls" aria-hidden="false">
+                <button id="zoom-minus" title="Zoom out">−</button>
+                <input id="zoom-range" type="range" min="50" max="200" value="100" step="5" aria-label="Zoom percent">
+                <button id="zoom-plus" title="Zoom in">+</button>
+                <div class="zoom-label" id="zoom-label">100%</div>
+            </div>
         </header>
 
         <main class="content">
-            <!-- iframe that loads KPI pages -->
-            <iframe id="kpi-frame" title="KPI viewer" src="3 Tab Section_kpi.html"></iframe>
+            <!-- iframe that loads KPI pages, wrapped so we can control overflow -->
+            <div class="iframe-wrap" style="flex:1 1 auto; overflow:auto;">
+                <iframe id="kpi-frame" title="KPI viewer" src="Dry Mat_kpi.html"></iframe>
+            </div>
         </main>
     </div>
 
@@ -177,6 +224,42 @@
                     if (link) setActive(link);
                 }
             });
+
+            // -------------------------
+            // Zoom controls for iframe
+            // -------------------------
+            const zoomRange = document.getElementById('zoom-range');
+            const zoomMinus = document.getElementById('zoom-minus');
+            const zoomPlus = document.getElementById('zoom-plus');
+            const zoomLabel = document.getElementById('zoom-label');
+            const iframeWrap = document.querySelector('.iframe-wrap');
+
+            let zoom = parseInt(zoomRange.value, 10) || 100;
+            function applyZoom(val) {
+                zoom = Math.max(10, Math.min(300, Math.round(val)));
+                const scale = zoom / 100;
+                // scale the iframe content and adjust the iframe width/height so it fits the wrapper
+                frame.style.transform = 'scale(' + scale + ')';
+                frame.style.transformOrigin = '0 0';
+                // Make the iframe element larger so the scaled content fills the container width
+                frame.style.width = (100 / scale) + '%';
+                // compute height so the visible area stays consistent
+                const navHeight = document.querySelector('header.navbar').offsetHeight || 64;
+                const extra = 24; // padding used in CSS calculations
+                const visibleH = window.innerHeight - navHeight - extra;
+                // set iframe height to compensate for scaling
+                frame.style.height = (visibleH / scale) + 'px';
+                // update UI
+                zoomRange.value = zoom;
+                zoomLabel.textContent = zoom + '%';
+            }
+
+            zoomMinus.addEventListener('click', function () { applyZoom(zoom - 10); });
+            zoomPlus.addEventListener('click', function () { applyZoom(zoom + 10); });
+            zoomRange.addEventListener('input', function () { applyZoom(parseInt(this.value, 10)); });
+            window.addEventListener('resize', function () { applyZoom(zoom); });
+            // initialize
+            applyZoom(zoom);
         })();
     </script>
 </body>
