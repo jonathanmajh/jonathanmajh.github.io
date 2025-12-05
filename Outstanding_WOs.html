@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Outstanding WOs — KPI charts by site</title>
+    <script src="https://cdn.plot.ly/plotly-2.24.2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        body {
+            font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+            margin: 18px
+        }
+
+        header {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 12px
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center
+        }
+
+        .charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 18px
+        }
+
+        .chart-card {
+            border: 1px solid #ddd;
+            padding: 8px;
+            border-radius: 6px;
+            background: #fff
+        }
+
+        .chart-title {
+            font-weight: 600;
+            margin-bottom: 6px
+        }
+
+        .small {
+            font-size: 0.9rem;
+            color: #444
+        }
+
+        .note {
+            margin-top: 10px;
+            color: #666
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h2>Outstanding WOs — KPI per site</h2>
+        <div class="controls">
+            <label class="small">Aggregation:</label>
+            <label><input type="radio" name="freq" value="daily" checked> Daily</label>
+            <label><input type="radio" name="freq" value="weekly"> Weekly</label>
+            <label><input type="radio" name="freq" value="monthly"> Monthly</label>
+        </div>
+    </header>
+
+    <div class="note">This page renders one chart per site. Change the aggregation to update all charts.</div>
+
+    <div id="charts" class="charts"></div>
+
+    <script>
+        // Load CSV data
+        sites = [];
+        rows = [];
+
+        Papa.parse('outstanding_wo.csv', {
+            download: true, header: true, skipEmptyLines: true, complete: function (results) {
+                // Unique sites
+                rows = results.data;
+                sites = Array.from(new Set(rows.map(r => r.site))).sort();
+                
+                // Create chart containers
+                const chartsEl = document.getElementById('charts');
+                sites.forEach(site => {
+                    const safeId = 'chart-' + site.replace(/[^a-z0-9]/gi, '-');
+                    const card = document.createElement('div'); card.className = 'chart-card';
+                    const title = document.createElement('div'); title.className = 'chart-title'; title.textContent = site;
+                    const div = document.createElement('div'); div.id = safeId; div.style.height = '400px';
+                    card.appendChild(title); card.appendChild(div); chartsEl.appendChild(card);
+                });
+
+                // Initial render
+                renderAll('daily', sites, rows);
+
+            }
+        });
+
+
+
+        // Aggregation helpers
+        function isoWeekStart(date) {
+            // return Monday start of ISO week for given Date
+            const d = new Date(date.getTime());
+            const day = (d.getDay() + 6) % 7; // Monday=0
+            d.setDate(d.getDate() - day);
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+
+        function monthStart(date) {
+            const d = new Date(date.getTime()); d.setDate(1); d.setHours(0, 0, 0, 0); return d;
+        }
+
+        function formatYMD(d) {
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function aggregateForSite(site, freq, rows) {
+            // Aggregate values by date and by type for the given site and frequency
+            const filtered = rows.filter(r => r.site === site);
+            const temp = [];
+            const dateSet = new Set();
+            const typeSet = new Set();
+
+            filtered.forEach(r => {
+                const d = new Date(r.recordedon + 'T00:00:00');
+                let keyDate;
+                if (freq === 'daily') keyDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                else if (freq === 'weekly') keyDate = isoWeekStart(d);
+                else if (freq === 'monthly') keyDate = monthStart(d);
+                const key = formatYMD(keyDate);
+                const type = r.type;
+                typeSet.add(type);
+                dateSet.add(key);
+                temp.push({ date: key, type: type, value: Number(r.kpivalue) });
+            });
+
+            const dates = Array.from(dateSet).sort((a, b) => new Date(a) - new Date(b));
+            const types = Array.from(typeSet).sort();
+
+            // Initialize valuesByType: for each type create an array aligned with dates filled with 0
+            const valuesByType = {};
+            types.forEach(t => { valuesByType[t] = dates.map(() => 0); });
+
+            // Sum values into the right slot
+            temp.forEach(item => {
+                const idx = dates.indexOf(item.date);
+                if (idx >= 0) {
+                    valuesByType[item.type][idx] += item.value;
+                }
+            });
+
+            return { dates: dates, types: types, valuesByType: valuesByType };
+        }
+
+        function renderAll(freq, sites, rows) {
+            sites.forEach(site => {
+                const safeId = 'chart-' + site.replace(/[^a-z0-9]/gi, '-');
+                const agg = aggregateForSite(site, freq, rows);
+                const x = agg.dates;
+
+                // Build a trace per type so the bars stack
+                const traces = agg.types.map(type => ({
+                    x: x,
+                    y: agg.valuesByType[type],
+                    type: 'bar',
+                    name: type
+                }));
+
+                const layout = {
+                    barmode: 'stack',
+                    margin: { t: 30, l: 40, r: 10, b: 60 },
+                    yaxis: { title: 'Number of Outstanding WOs' },
+                    xaxis: { title: freq === 'daily' ? 'Date' : (freq === 'weekly' ? 'Week start' : 'Month'), tickangle: -45 }
+                };
+
+                // If there are no traces (no data), show an empty plot
+                if (traces.length === 0) {
+                    Plotly.react(safeId, [], layout, { responsive: true });
+                } else {
+                    Plotly.react(safeId, traces, layout, { responsive: true });
+                }
+            });
+        }
+
+        // Wire controls
+        document.querySelectorAll('input[name="freq"]').forEach(r => {
+            r.addEventListener('change', () => {
+                const freq = document.querySelector('input[name="freq"]:checked').value;
+                renderAll(freq, sites, rows);
+            });
+        });
+
+    </script>
+</body>
+
+</html>
