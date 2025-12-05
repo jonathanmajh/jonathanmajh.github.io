@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Outstanding WOs — KPI charts by site</title>
+    <title>Outstanding WOs</title>
     <script src="https://cdn.plot.ly/plotly-2.24.2.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -59,17 +59,10 @@
 
 <body>
     <header>
-        <h2>Outstanding WOs — KPI per site</h2>
-        <div class="controls">
-            <label class="small">Aggregation:</label>
-            <label><input type="radio" name="freq" value="daily" checked> Daily</label>
-            <label><input type="radio" name="freq" value="weekly"> Weekly</label>
-            <label><input type="radio" name="freq" value="monthly"> Monthly</label>
-        </div>
+        <h2>Outstanding WOs</h2>
     </header>
 
-    <div class="note">This page renders one chart per site. Change the aggregation to update all charts.</div>
-
+    <div class="note">Overview chart compares Outstanding WOs across all sites for any specific date, please use the date selector to pick a date</div>
     <!-- Overview: compare sites for a selected date -->
     <div id="overview-card" class="chart-card">
         <div class="chart-title">Overview — Sites comparison</div>
@@ -79,13 +72,25 @@
         </div>
         <div id="overview-chart" style="height:420px"></div>
     </div>
-
+    <div class="note">Below are individual graphs for each site, please use the Aggregation button to change time periods shown, Weekly / Monthly graphs are averages</div>
+            <div class="controls">
+            <label class="small">Aggregation:</label>
+            <label><input type="radio" name="freq" value="daily" checked> Daily</label>
+            <label><input type="radio" name="freq" value="weekly"> Weekly</label>
+            <label><input type="radio" name="freq" value="monthly"> Monthly</label>
+        </div>
     <div id="charts" class="charts"></div>
 
     <script>
         // Load CSV data
         sites = [];
         rows = [];
+
+        const typeNames = {
+            'PM': 'Overdue PM WOs',
+            '90': 'Manual WOs (90+ days)',
+            '180': 'Manual WOs (180+ days)',
+        }
 
         Papa.parse('outstanding_wo.csv', {
             download: true, header: true, skipEmptyLines: true, complete: function (results) {
@@ -160,15 +165,31 @@
 
             // Initialize valuesByType: for each type create an array aligned with dates filled with 0
             const valuesByType = {};
+            const valuesByTypeCounter = {};
             types.forEach(t => { valuesByType[t] = dates.map(() => 0); });
+            types.forEach(t => { valuesByTypeCounter[t] = dates.map(() => 0); });
 
             // Sum values into the right slot
+            // TODO average for weekly/monthly
             temp.forEach(item => {
                 const idx = dates.indexOf(item.date);
                 if (idx >= 0) {
                     valuesByType[item.type][idx] += item.value;
+                    valuesByTypeCounter[item.type][idx] += 1;
                 }
             });
+
+            // For weekly/monthly, convert sums to averages
+            if (freq === 'weekly' || freq === 'monthly') {
+                types.forEach(t => {
+                    for (let i = 0; i < dates.length; i++) {
+                        const count = valuesByTypeCounter[t][i];
+                        if (count > 0) {
+                            valuesByType[t][i] = valuesByType[t][i] / count;
+                        }
+                    }
+                });
+            }
 
             return { dates: dates, types: types, valuesByType: valuesByType };
         }
@@ -184,14 +205,25 @@
                     x: x,
                     y: agg.valuesByType[type],
                     type: 'bar',
-                    name: type
+                    name: typeNames[type] || type
                 }));
+
+                // Ensure only the actual data dates are used as ticks. For monthly, show YYYY-MM.
+                const tickvals = x;
+                const ticktext = (freq === 'monthly') ? x.map(d => d.slice(0, 7)) : x;
 
                 const layout = {
                     barmode: 'stack',
-                    margin: { t: 30, l: 40, r: 10, b: 60 },
+                    margin: { t: 30, l: 50, r: 10, b: 80 },
                     yaxis: { title: 'Number of Outstanding WOs' },
-                    xaxis: { title: freq === 'daily' ? 'Date' : (freq === 'weekly' ? 'Week start' : 'Month'), tickangle: -45 }
+                    xaxis: {
+                        title: freq === 'daily' ? 'Date' : (freq === 'weekly' ? 'Week start' : 'Month'),
+                        tickangle: -45,
+                        tickmode: 'array',
+                        tickvals: tickvals,
+                        ticktext: ticktext
+                    },
+                    legend: {"orientation": "h", x:0, y:-0.3}
                 };
 
                 // If there are no traces (no data), show an empty plot
@@ -249,14 +281,15 @@
                 x: sitesList,
                 y: sitesList.map(site => (siteMap.get(site)[type] || 0)),
                 type: 'bar',
-                name: type
+                name: typeNames[type] || type
             }));
 
             const layout = {
                 barmode: 'stack',
-                margin: { t: 30, l: 40, r: 10, b: 140 },
+                margin: { t: 30, l: 60, r: 10, b: 90 },
                 yaxis: { title: 'Number of Outstanding WOs' },
-                xaxis: { title: 'Site', tickangle: -45 }
+                xaxis: { title: 'Site', tickangle: -45 },
+                legend: {"orientation": "h", x:0, y:-0.3}
             };
 
             const containerId = 'overview-chart';
