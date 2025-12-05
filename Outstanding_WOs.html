@@ -70,6 +70,16 @@
 
     <div class="note">This page renders one chart per site. Change the aggregation to update all charts.</div>
 
+    <!-- Overview: compare sites for a selected date -->
+    <div id="overview-card" class="chart-card">
+        <div class="chart-title">Overview — Sites comparison</div>
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;">
+            <label class="small">Date:</label>
+            <input type="date" id="overview-date">
+        </div>
+        <div id="overview-chart" style="height:420px"></div>
+    </div>
+
     <div id="charts" class="charts"></div>
 
     <script>
@@ -95,6 +105,9 @@
 
                 // Initial render
                 renderAll('daily', sites, rows);
+
+                // Setup overview (site comparison) controls and render default
+                setupOverview(rows);
 
             }
         });
@@ -188,6 +201,70 @@
                     Plotly.react(safeId, traces, layout, { responsive: true });
                 }
             });
+        }
+
+        // Overview: compare all sites for a single selected date (stacked by type)
+        function setupOverview(rows) {
+            const dateInput = document.getElementById('overview-date');
+            if (!dateInput) return;
+
+            // collect unique recordedon dates
+            const dateSet = new Set(rows.map(r => r.recordedon));
+            const dates = Array.from(dateSet).sort((a, b) => new Date(a) - new Date(b));
+            if (dates.length === 0) return;
+
+            // set min/max and default to latest
+            dateInput.min = dates[0];
+            dateInput.max = dates[dates.length - 1];
+            dateInput.value = dates[dates.length - 1];
+
+            // initial render
+            renderOverviewForDate(dateInput.value, rows);
+
+            // wire change
+            dateInput.addEventListener('change', () => {
+                renderOverviewForDate(dateInput.value, rows);
+            });
+        }
+
+        function renderOverviewForDate(dateKey, rows) {
+            // Aggregate per site and per type for the selected dateKey (YYYY-MM-DD)
+            const siteMap = new Map();
+            rows.forEach(r => {
+                if (r.recordedon !== dateKey) return;
+                const site = r.site;
+                const type = r.type;
+                const v = Number(r.kpivalue) || 0;
+                if (!siteMap.has(site)) siteMap.set(site, {});
+                const obj = siteMap.get(site);
+                obj[type] = (obj[type] || 0) + v;
+            });
+
+            const sitesList = Array.from(siteMap.keys()).sort();
+            const typesSet = new Set();
+            siteMap.forEach(obj => Object.keys(obj).forEach(t => typesSet.add(t)));
+            const types = Array.from(typesSet).sort();
+
+            const traces = types.map(type => ({
+                x: sitesList,
+                y: sitesList.map(site => (siteMap.get(site)[type] || 0)),
+                type: 'bar',
+                name: type
+            }));
+
+            const layout = {
+                barmode: 'stack',
+                margin: { t: 30, l: 40, r: 10, b: 140 },
+                yaxis: { title: 'Number of Outstanding WOs' },
+                xaxis: { title: 'Site', tickangle: -45 }
+            };
+
+            const containerId = 'overview-chart';
+            if (traces.length === 0) {
+                Plotly.react(containerId, [], layout, { responsive: true });
+            } else {
+                Plotly.react(containerId, traces, layout, { responsive: true });
+            }
         }
 
         // Wire controls
