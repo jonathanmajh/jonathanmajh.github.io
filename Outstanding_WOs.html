@@ -191,6 +191,11 @@
                 });
             }
 
+            // remove over 180 days WOs from 90 days
+            valuesByType[90].forEach((value, i) => {
+                valuesByType[90][i] = value - valuesByType[180][i]
+            })
+
             return { dates: dates, types: types, valuesByType: valuesByType };
         }
 
