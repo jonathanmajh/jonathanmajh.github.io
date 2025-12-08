@@ -315,6 +315,12 @@
         (function () {
             const nav = document.getElementById('nav-list');
             const frame = document.getElementById('kpi-frame');
+            const hash = location.hash && decodeURIComponent(location.hash.slice(1));
+            if (hash) {
+                // Load the hashed page into the iframe whether or not it's in the nav
+                frame.src = hash;
+                const link = nav.querySelector('[data-href="' + hash + '"]');
+            }
             function setActive(link) {
                 Array.from(nav.querySelectorAll('a')).forEach(a => a.classList.remove('active'));
                 if (link) link.classList.add('active');
@@ -343,16 +349,18 @@
                 if (hash) {
                     const link = nav.querySelector('[data-href="' + hash + '"]');
                     if (link) {
-                        frame.src = hash;
                         setActive(link);
                         nav.classList.remove('hidden');
                     } else {
+                        // No corresponding nav item: clear any active state and hide nav
+                        setActive(null);
                         nav.classList.add('hidden');
                     }
                 } else {
                     // mark the default active link
                     const first = nav.querySelector('a[data-href]');
                     if (first) setActive(first);
+                    nav.classList.remove('hidden');
                 }
             }
 
