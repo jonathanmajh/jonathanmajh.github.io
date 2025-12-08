@@ -23,6 +23,10 @@
             overflow: hidden;
         }
 
+        .hidden {
+            display: none;
+        }
+
         .container {
             /* max-width:1200px; */
             margin: 0 auto;
@@ -48,6 +52,93 @@
         header h1 {
             font-size: 18px;
             margin: 0;
+        }
+
+        /* Header dropdown styling */
+        .header-dropdown-wrap {
+            position: relative;
+        }
+
+        .dropdown-button {
+            font-size: 18px;
+            margin: 0;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            background: transparent;
+            color: var(--primary);
+            cursor: pointer;
+        }
+
+        .dropdown-button:focus {
+            outline: 2px solid rgba(3, 102, 214, 0.18);
+            outline-offset: 2px;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            /* reduce visual gap so hover remains active while moving pointer */
+            top: calc(100% + 2px);
+            left: 0;
+            min-width: 180px;
+            background: #fff;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+            border-radius: 6px;
+            padding: 6px 0;
+            list-style: none;
+            margin: 0;
+            z-index: 2000;
+        }
+
+        .dropdown-menu li a {
+            display: block;
+            padding: 8px 12px;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .dropdown-menu li a:hover,
+        .dropdown-menu li a:focus {
+            background: var(--muted);
+            color: var(--primary);
+        }
+
+        /* Open on hover for pointer devices */
+        .header-dropdown-wrap:hover .dropdown-menu {
+            display: block;
+        }
+
+        /* Toggle-open class for click/touch */
+        .header-dropdown-wrap.open .dropdown-menu {
+            display: block;
+        }
+
+        /* Visually hidden helper for accessibility */
+        .sr-only {
+            position: absolute !important;
+            width: 1px !important;
+            height: 1px !important;
+            padding: 0 !important;
+            margin: -1px !important;
+            overflow: hidden !important;
+            clip: rect(0, 0, 0, 0) !important;
+            white-space: nowrap !important;
+            border: 0 !important;
+        }
+
+        /* Extend the hoverable area slightly to prevent accidental hover loss
+           when moving the pointer from the button to the menu. */
+        .header-dropdown-wrap::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: -6px;
+            height: 6px;
+            /* keep it invisible but hoverable */
+            background: transparent;
         }
 
         nav ul {
@@ -179,7 +270,16 @@
 <body>
     <div class="container">
         <header class="navbar">
-            <h1>KPI Dashboard</h1>
+            <div class="header-dropdown-wrap" style="position:relative; display:flex;align-items:center;gap:8px;">
+                <button id="header-dropdown-button" class="dropdown-button" aria-haspopup="true" aria-expanded="false"
+                    aria-label="Open dashboard">KPI Dashboard ▾</button>
+                <ul id="header-dropdown-menu" class="dropdown-menu" role="menu" aria-label="Dashboard menu">
+                    <li role="none"><a role="menuitem" href="#" data-href="Dry Mat_kpi.html">Prodac Events</a></li>
+                    <li role="none"><a role="menuitem" href="#" data-href="MTTC.html">MTTC</a></li>
+                    <li role="none"><a role="menuitem" href="#" data-href="Outstanding_WOs.html">Outstanding WOs</a>
+                    </li>
+                </ul>
+            </div>
             <nav aria-label="KPI Navigation">
                 <ul id="nav-list">
                     <li><a href="#" data-href="Dry Mat_kpi.html">Dry Mat</a></li>
@@ -235,16 +335,26 @@
 
             // On load, check hash to restore last viewed page
             window.addEventListener('load', function () {
+                checkActive();
+            });
+
+            function checkActive() {
                 const hash = location.hash && decodeURIComponent(location.hash.slice(1));
                 if (hash) {
                     const link = nav.querySelector('[data-href="' + hash + '"]');
-                    if (link) { frame.src = hash; setActive(link); }
+                    if (link) {
+                        frame.src = hash;
+                        setActive(link);
+                        nav.classList.remove('hidden');
+                    } else {
+                        nav.classList.add('hidden');
+                    }
                 } else {
                     // mark the default active link
                     const first = nav.querySelector('a[data-href]');
                     if (first) setActive(first);
                 }
-            });
+            }
 
             // support back/forward navigation
             window.addEventListener('popstate', function (e) {
@@ -255,6 +365,52 @@
                     if (link) setActive(link);
                 }
             });
+
+            // Header dropdown: custom button + menu that opens on hover (pointer) and toggles on click (touch)
+            const ddButton = document.getElementById('header-dropdown-button');
+            const ddMenu = document.getElementById('header-dropdown-menu');
+            const ddWrap = document.querySelector('.header-dropdown-wrap');
+            if (ddButton && ddMenu && ddWrap) {
+                // Click toggles open state (for touch devices and keyboard users)
+                ddButton.addEventListener('click', function (e) {
+                    const isOpen = ddWrap.classList.toggle('open');
+                    ddButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                });
+
+                // Menu item click: load into iframe and update history
+                ddMenu.addEventListener('click', function (e) {
+                    const a = e.target.closest('a[data-href]');
+                    if (!a) return;
+                    e.preventDefault();
+                    const href = a.getAttribute('data-href');
+                    if (href) {
+                        frame.src = href;
+                        setActive(null);
+                        try { history.pushState({ kpi: href }, '', '#' + encodeURIComponent(href)); } catch (err) { }
+                        checkActive();
+                    }
+                    // close menu
+                    ddWrap.classList.remove('open');
+                    ddButton.setAttribute('aria-expanded', 'false');
+                });
+
+                // Close menu when clicking outside
+                document.addEventListener('click', function (e) {
+                    if (!ddWrap.contains(e.target)) {
+                        ddWrap.classList.remove('open');
+                        ddButton.setAttribute('aria-expanded', 'false');
+                    }
+                });
+
+                // Close on Escape key
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        ddWrap.classList.remove('open');
+                        ddButton.setAttribute('aria-expanded', 'false');
+                        ddButton.focus();
+                    }
+                });
+            }
 
             // -------------------------
             // Zoom controls for iframe
